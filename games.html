@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ARCADIA — Free Games</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --panel: #12121a;
+    --border: #2a2a40;
+    --accent: #00f5ff;
+    --accent2: #ff006e;
+    --accent3: #aaff00;
+    --text: #e0e0ff;
+    --dim: #555580;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Scanline overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,245,255,0.015) 2px, rgba(0,245,255,0.015) 4px);
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  header {
+    padding: 2rem 2rem 1rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    background: linear-gradient(180deg, rgba(0,245,255,0.04) 0%, transparent 100%);
+  }
+
+  .logo {
+    font-family: 'Orbitron', monospace;
+    font-size: 2.2rem;
+    font-weight: 900;
+    letter-spacing: 0.3em;
+    color: var(--accent);
+    text-shadow: 0 0 30px rgba(0,245,255,0.6), 0 0 60px rgba(0,245,255,0.2);
+    animation: pulse 3s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { text-shadow: 0 0 30px rgba(0,245,255,0.6), 0 0 60px rgba(0,245,255,0.2); }
+    50% { text-shadow: 0 0 50px rgba(0,245,255,0.9), 0 0 100px rgba(0,245,255,0.4); }
+  }
+
+  .tagline { color: var(--dim); font-size: 0.75rem; letter-spacing: 0.2em; }
+
+  nav {
+    display: flex;
+    gap: 1rem;
+    padding: 1rem 2rem;
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+  }
+
+  .nav-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--dim);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    padding: 0.5rem 1.2rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .nav-btn:hover, .nav-btn.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    box-shadow: 0 0 15px rgba(0,245,255,0.2);
+  }
+
+  .game-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+    padding: 2rem;
+  }
+
+  .game-card {
+    border: 1px solid var(--border);
+    background: var(--panel);
+    cursor: pointer;
+    transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .game-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, transparent 60%, rgba(0,245,255,0.04));
+    pointer-events: none;
+  }
+
+  .game-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-4px);
+    box-shadow: 0 0 30px rgba(0,245,255,0.15), 0 20px 40px rgba(0,0,0,0.5);
+  }
+
+  .game-preview {
+    width: 100%;
+    height: 160px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 4rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .game-preview.snake { background: linear-gradient(135deg, #001a00, #002a00); }
+  .game-preview.tetris { background: linear-gradient(135deg, #0a001a, #15002a); }
+  .game-preview.flappy { background: linear-gradient(135deg, #001a2a, #00152a); }
+  .game-preview.memory { background: linear-gradient(135deg, #1a0010, #2a001a); }
+  .game-preview.pong { background: linear-gradient(135deg, #0a0a0a, #1a1a1a); }
+  .game-preview.typing { background: linear-gradient(135deg, #1a1000, #2a1800); }
+
+  .game-info { padding: 1.2rem; }
+  .game-name {
+    font-family: 'Orbitron', monospace;
+    font-size: 0.9rem;
+    letter-spacing: 0.1em;
+    margin-bottom: 0.4rem;
+    color: var(--accent);
+  }
+  .game-desc { font-size: 0.7rem; color: var(--dim); line-height: 1.6; }
+  .game-tag {
+    display: inline-block;
+    border: 1px solid var(--accent3);
+    color: var(--accent3);
+    font-size: 0.6rem;
+    padding: 0.15rem 0.5rem;
+    margin-top: 0.8rem;
+    letter-spacing: 0.1em;
+  }
+
+  /* MODAL */
+  .modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.92);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+  }
+  .modal.open { display: flex; }
+
+  .modal-inner {
+    background: var(--panel);
+    border: 1px solid var(--accent);
+    box-shadow: 0 0 60px rgba(0,245,255,0.15);
+    max-width: 700px;
+    width: 100%;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .modal-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 1rem;
+    color: var(--accent);
+    letter-spacing: 0.15em;
+  }
+
+  .close-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--dim);
+    font-size: 1rem;
+    cursor: pointer;
+    padding: 0.25rem 0.6rem;
+    font-family: monospace;
+    transition: all 0.2s;
+  }
+  .close-btn:hover { border-color: var(--accent2); color: var(--accent2); }
+
+  .modal-body {
+    padding: 1.5rem;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  canvas { display: block; border: 1px solid var(--border); background: #000; }
+
+  .score-bar {
+    display: flex;
+    gap: 2rem;
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    color: var(--dim);
+  }
+  .score-bar span { color: var(--accent); font-family: 'Orbitron', monospace; }
+
+  .game-controls {
+    font-size: 0.65rem;
+    color: var(--dim);
+    text-align: center;
+    letter-spacing: 0.1em;
+    line-height: 1.8;
+  }
+
+  .btn {
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.15em;
+    padding: 0.6rem 2rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn:hover { background: var(--accent); color: #000; box-shadow: 0 0 20px rgba(0,245,255,0.4); }
+  .btn.danger { border-color: var(--accent2); color: var(--accent2); }
+  .btn.danger:hover { background: var(--accent2); color: #fff; }
+
+  .game-over-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+  }
+  .game-over-text {
+    font-family: 'Orbitron', monospace;
+    font-size: 1.5rem;
+    color: var(--accent2);
+    text-shadow: 0 0 20px rgba(255,0,110,0.6);
+    letter-spacing: 0.2em;
+  }
+  .canvas-wrap { position: relative; }
+
+  /* Memory cards */
+  .memory-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.6rem;
+    width: 100%;
+    max-width: 380px;
+  }
+  .mem-card {
+    aspect-ratio: 1;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8rem;
+    transition: all 0.3s;
+    transform-style: preserve-3d;
+  }
+  .mem-card.flipped, .mem-card.matched {
+    border-color: var(--accent);
+    background: #001a1a;
+  }
+  .mem-card.matched { border-color: var(--accent3); opacity: 0.6; }
+  .mem-card:not(.flipped):not(.matched) > span { display: none; }
+  .mem-card:not(.flipped):not(.matched) { background: linear-gradient(135deg, #12121a, #1a1a2a); }
+
+  /* Typing game */
+  .typing-display {
+    width: 100%;
+    max-width: 540px;
+  }
+  .typing-word {
+    font-family: 'Orbitron', monospace;
+    font-size: 2rem;
+    color: var(--accent);
+    text-align: center;
+    letter-spacing: 0.2em;
+    margin-bottom: 0.5rem;
+    text-shadow: 0 0 20px rgba(0,245,255,0.4);
+  }
+  .typing-input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: 1rem;
+    padding: 0.8rem 1rem;
+    outline: none;
+    text-align: center;
+    letter-spacing: 0.2em;
+  }
+  .typing-input:focus { border-color: var(--accent); box-shadow: 0 0 15px rgba(0,245,255,0.2); }
+  .typing-bar {
+    width: 100%;
+    height: 4px;
+    background: var(--border);
+    margin-top: 0.5rem;
+  }
+  .typing-bar-fill {
+    height: 100%;
+    background: var(--accent);
+    transition: width 0.1s linear;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">ARCADIA</div>
+    <div class="tagline">FREE · INSTANT · NO ADS · NO DOWNLOADS</div>
+  </div>
+</header>
+
+<nav>
+  <button class="nav-btn active">ALL GAMES</button>
+  <button class="nav-btn">ARCADE</button>
+  <button class="nav-btn">PUZZLE</button>
+  <button class="nav-btn">SKILL</button>
+</nav>
+
+<div class="game-grid">
+  <div class="game-card" onclick="openGame('snake')">
+    <div class="game-preview snake">🐍</div>
+    <div class="game-info">
+      <div class="game-name">SNAKE</div>
+      <div class="game-desc">Classic serpent survival. Eat, grow, don't hit yourself.</div>
+      <span class="game-tag">ARCADE</span>
+    </div>
+  </div>
+  <div class="game-card" onclick="openGame('tetris')">
+    <div class="game-preview tetris">🧩</div>
+    <div class="game-info">
+      <div class="game-name">TETRIS</div>
+      <div class="game-desc">Stack falling blocks, clear lines, survive as long as you can.</div>
+      <span class="game-tag">PUZZLE</span>
+    </div>
+  </div>
+  <div class="game-card" onclick="openGame('flappy')">
+    <div class="game-preview flappy">🐦</div>
+    <div class="game-info">
+      <div class="game-name">FLAPPY BIRD</div>
+      <div class="game-desc">Tap to fly through gaps. One touch. Pure reflex.</div>
+      <span class="game-tag">SKILL</span>
+    </div>
+  </div>
+  <div class="game-card" onclick="openGame('memory')">
+    <div class="game-preview memory">🃏</div>
+    <div class="game-info">
+      <div class="game-name">MEMORY MATCH</div>
+      <div class="game-desc">Flip cards and find matching pairs. Train your memory.</div>
+      <span class="game-tag">PUZZLE</span>
+    </div>
+  </div>
+  <div class="game-card" onclick="openGame('pong')">
+    <div class="game-preview pong">🏓</div>
+    <div class="game-info">
+      <div class="game-name">PONG</div>
+      <div class="game-desc">The original. Bounce the ball. Beat the AI opponent.</div>
+      <span class="game-tag">ARCADE</span>
+    </div>
+  </div>
+  <div class="game-card" onclick="openGame('typing')">
+    <div class="game-preview typing">⌨️</div>
+    <div class="game-info">
+      <div class="game-name">TYPE RUSH</div>
+      <div class="game-desc">Type words before they vanish. Speed and accuracy matter.</div>
+      <span class="game-tag">SKILL</span>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal" id="modal">
+  <div class="modal-inner">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-title">GAME</div>
+      <button class="close-btn" onclick="closeGame()">✕ CLOSE</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+<script>
+// ======================= SNAKE =======================
+function createSnake() {
+  const W = 400, H = 400, SZ = 20;
+  let canvas = document.createElement('canvas');
+  canvas.width = W; canvas.height = H;
+  let ctx = canvas.getContext('2d');
+  let snake, dir, food, score, gameLoop, dead;
+
+  function init() {
+    snake = [{x:10,y:10},{x:9,y:10},{x:8,y:10}];
+    dir = {x:1,y:0};
+    score = 0;
+    dead = false;
+    placeFood();
+    if(gameLoop) clearInterval(gameLoop);
+    gameLoop = setInterval(tick, 120);
+    scoreEl.innerHTML = 'SCORE: <span>' + score + '</span>';
+  }
+
+  function placeFood() {
+    food = {x: Math.floor(Math.random()*(W/SZ)), y: Math.floor(Math.random()*(H/SZ))};
+  }
+
+  function tick() {
+    let head = {x: snake[0].x + dir.x, y: snake[0].y + dir.y};
+    if(head.x<0||head.x>=W/SZ||head.y<0||head.y>=H/SZ||snake.some(s=>s.x===head.x&&s.y===head.y)) {
+      dead = true;
+      clearInterval(gameLoop);
+      draw(); return;
+    }
+    snake.unshift(head);
+    if(head.x===food.x&&head.y===food.y) { score++; scoreEl.innerHTML='SCORE: <span>'+score+'</span>'; placeFood(); }
+    else snake.pop();
+    draw();
+  }
+
+  function draw() {
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0,0,W,H);
+    // grid
+    ctx.strokeStyle = '#0a1a0a';
+    ctx.lineWidth = 0.5;
+    for(let i=0;i<W/SZ;i++) { ctx.beginPath(); ctx.moveTo(i*SZ,0); ctx.lineTo(i*SZ,H); ctx.stroke(); }
+    for(let i=0;i<H/SZ;i++) { ctx.beginPath(); ctx.moveTo(0,i*SZ); ctx.lineTo(W,i*SZ); ctx.stroke(); }
+    // food
+    ctx.fillStyle = '#ff006e';
+    ctx.shadowBlur = 10; ctx.shadowColor = '#ff006e';
+    ctx.fillRect(food.x*SZ+2,food.y*SZ+2,SZ-4,SZ-4);
+    ctx.shadowBlur = 0;
+    // snake
+    snake.forEach((s,i) => {
+      ctx.fillStyle = i===0 ? '#00f5ff' : `rgba(0,${180+Math.floor(75*(1-i/snake.length))},100,1)`;
+      if(i===0) { ctx.shadowBlur=15; ctx.shadowColor='#00f5ff'; }
+      ctx.fillRect(s.x*SZ+1,s.y*SZ+1,SZ-2,SZ-2);
+      ctx.shadowBlur=0;
+    });
+    if(dead) {
+      ctx.fillStyle='rgba(0,0,0,0.75)';
+      ctx.fillRect(0,0,W,H);
+      ctx.fillStyle='#ff006e';
+      ctx.font='bold 28px Orbitron,monospace';
+      ctx.textAlign='center';
+      ctx.fillText('GAME OVER',W/2,H/2-20);
+      ctx.fillStyle='#00f5ff';
+      ctx.font='14px Space Mono,monospace';
+      ctx.fillText('SCORE: '+score,W/2,H/2+15);
+      ctx.fillStyle='#555580';
+      ctx.font='11px Space Mono,monospace';
+      ctx.fillText('PRESS R TO RESTART',W/2,H/2+45);
+    }
+  }
+
+  document.addEventListener('keydown', function snakeKey(e) {
+    const map = {ArrowUp:{x:0,y:-1},ArrowDown:{x:0,y:1},ArrowLeft:{x:-1,y:0},ArrowRight:{x:1,y:0},
+                 w:{x:0,y:-1},s:{x:0,y:1},a:{x:-1,y:0},d:{x:1,y:0}};
+    if(map[e.key] && !(map[e.key].x===-dir.x && map[e.key].y===-dir.y)) dir=map[e.key];
+    if(e.key==='r'||e.key==='R') init();
+    canvas._cleanup = ()=>document.removeEventListener('keydown',snakeKey);
+  });
+
+  let scoreEl = document.createElement('div');
+  scoreEl.className = 'score-bar';
+  scoreEl.innerHTML = 'SCORE: <span>0</span>';
+
+  let startBtn = document.createElement('button');
+  startBtn.className = 'btn'; startBtn.textContent = '▶ START / RESTART (R)';
+  startBtn.onclick = init;
+
+  let controls = document.createElement('div');
+  controls.className = 'game-controls';
+  controls.textContent = 'ARROW KEYS / WASD TO MOVE  ·  R TO RESTART';
+
+  init();
+  return [scoreEl, canvas, controls, startBtn];
+}
+
+// ======================= TETRIS =======================
+function createTetris() {
+  const W=300,H=540,SZ=30;
+  const SHAPES=[
+    [[1,1,1,1]],
+    [[1,1],[1,1]],
+    [[0,1,1],[1,1,0]],
+    [[1,1,0],[0,1,1]],
+    [[1,0,0],[1,1,1]],
+    [[0,0,1],[1,1,1]],
+    [[0,1,0],[1,1,1]]
+  ];
+  const COLORS=['#00f5ff','#aaff00','#ff006e','#ff8c00','#8a2be2','#00ff88','#ff4444'];
+  let canvas=document.createElement('canvas'); canvas.width=W; canvas.height=H;
+  let ctx=canvas.getContext('2d');
+  let board,piece,score,lines,gameLoop,dead;
+
+  function init(){
+    board=Array.from({length:H/SZ},()=>Array(W/SZ).fill(0));
+    score=0; lines=0; dead=false;
+    spawn();
+    if(gameLoop)clearInterval(gameLoop);
+    gameLoop=setInterval(tick,500);
+    updateScore();
+  }
+
+  function spawn(){
+    let idx=Math.floor(Math.random()*SHAPES.length);
+    piece={shape:SHAPES[idx],color:COLORS[idx],x:3,y:0};
+    if(!valid(piece)){dead=true;clearInterval(gameLoop);}
+  }
+
+  function valid(p,shape=p.shape,ox=p.x,oy=p.y){
+    return shape.every((row,r)=>row.every((v,c)=>{
+      if(!v)return true;
+      let nx=ox+c,ny=oy+r;
+      return nx>=0&&nx<W/SZ&&ny<H/SZ&&!(ny>=0&&board[ny][nx]);
+    }));
+  }
+
+  function place(){
+    piece.shape.forEach((row,r)=>row.forEach((v,c)=>{
+      if(v&&piece.y+r>=0)board[piece.y+r][piece.x+c]=piece.color;
+    }));
+    let cleared=0;
+    for(let r=H/SZ-1;r>=0;r--){
+      if(board[r].every(c=>c)){board.splice(r,1);board.unshift(Array(W/SZ).fill(0));cleared++;r++;}
+    }
+    lines+=cleared; score+=cleared*100*(cleared>1?cleared:1);
+    updateScore();
+    spawn();
+  }
+
+  function updateScore(){
+    scoreEl.innerHTML='SCORE: <span>'+score+'</span> &nbsp; LINES: <span>'+lines+'</span>';
+  }
+
+  function tick(){
+    piece.y++;
+    if(!valid(piece)){piece.y--;place();}
+    draw();
+  }
+
+  function rotate(shape){
+    return shape[0].map((_,i)=>shape.map(r=>r[i]).reverse());
+  }
+
+  function draw(){
+    ctx.fillStyle='#000';ctx.fillRect(0,0,W,H);
+    ctx.strokeStyle='#0a0a14';ctx.lineWidth=0.5;
+    for(let x=0;x<W/SZ;x++){ctx.beginPath();ctx.moveTo(x*SZ,0);ctx.lineTo(x*SZ,H);ctx.stroke();}
+    for(let y=0;y<H/SZ;y++){ctx.beginPath();ctx.moveTo(0,y*SZ);ctx.lineTo(W,y*SZ);ctx.stroke();}
+    board.forEach((row,r)=>row.forEach((c,col)=>{
+      if(c){ctx.fillStyle=c;ctx.shadowBlur=6;ctx.shadowColor=c;ctx.fillRect(col*SZ+1,r*SZ+1,SZ-2,SZ-2);ctx.shadowBlur=0;}
+    }));
+    if(piece){
+      ctx.fillStyle=piece.color;
+      ctx.shadowBlur=8;ctx.shadowColor=piece.color;
+      piece.shape.forEach((row,r)=>row.forEach((v,c)=>{
+        if(v&&piece.y+r>=0)ctx.fillRect((piece.x+c)*SZ+1,(piece.y+r)*SZ+1,SZ-2,SZ-2);
+      }));
+      ctx.shadowBlur=0;
+    }
+    if(dead){
+      ctx.fillStyle='rgba(0,0,0,0.8)';ctx.fillRect(0,0,W,H);
+      ctx.fillStyle='#ff006e';ctx.font='bold 26px Orbitron,monospace';ctx.textAlign='center';
+      ctx.fillText('GAME OVER',W/2,H/2-20);
+      ctx.fillStyle='#00f5ff';ctx.font='13px Space Mono,monospace';
+      ctx.fillText('SCORE: '+score,W/2,H/2+15);
+      ctx.fillStyle='#555580';ctx.font='11px Space Mono,monospace';
+      ctx.fillText('PRESS R TO RESTART',W/2,H/2+45);
+    }
+  }
+
+  document.addEventListener('keydown',function tetKey(e){
+    if(dead){if(e.key==='r'||e.key==='R')init();return;}
+    if(e.key==='ArrowLeft'){piece.x--;if(!valid(piece))piece.x++;}
+    else if(e.key==='ArrowRight'){piece.x++;if(!valid(piece))piece.x--;}
+    else if(e.key==='ArrowDown'){piece.y++;if(!valid(piece))piece.y--;}
+    else if(e.key==='ArrowUp'){let r=rotate(piece.shape);if(valid(piece,r))piece.shape=r;}
+    else if(e.key===' '){while(valid(piece))piece.y++;piece.y--;place();}
+    else if(e.key==='r'||e.key==='R')init();
+    draw();
+    canvas._cleanup=()=>document.removeEventListener('keydown',tetKey);
+  });
+
+  let scoreEl=document.createElement('div'); scoreEl.className='score-bar';
+  let sb=document.createElement('button'); sb.className='btn'; sb.textContent='▶ START / RESTART (R)'; sb.onclick=init;
+  let ctrl=document.createElement('div'); ctrl.className='game-controls';
+  ctrl.textContent='← → MOVE  ·  ↑ ROTATE  ·  ↓ SOFT DROP  ·  SPACE HARD DROP  ·  R RESTART';
+  init();
+  return [scoreEl,canvas,ctrl,sb];
+}
+
+// ======================= FLAPPY =======================
+function createFlappy() {
+  const W=400,H=400;
+  let canvas=document.createElement('canvas'); canvas.width=W; canvas.height=H;
+  let ctx=canvas.getContext('2d');
+  let bird,pipes,score,frameId,dead,started;
+
+  function init(){
+    bird={y:H/2,vy:0,x:80};
+    pipes=[]; score=0; dead=false; started=false;
+    if(frameId)cancelAnimationFrame(frameId);
+    draw(); loop();
+  }
+
+  function flap(){
+    if(dead){init();return;}
+    if(!started)started=true;
+    bird.vy=-7;
+  }
+
+  let lastPipe=0;
+  function loop(){
+    frameId=requestAnimationFrame(loop);
+    if(!started){draw();return;}
+    bird.vy+=0.4; bird.y+=bird.vy;
+    lastPipe++;
+    if(lastPipe>80){pipes.push({x:W,gap:80+Math.random()*120,top:60+Math.random()*(H-200)});lastPipe=0;}
+    pipes.forEach(p=>{p.x-=3;});
+    pipes=pipes.filter(p=>p.x>-60);
+    // score
+    pipes.forEach(p=>{if(p.x+50<bird.x&&!p.scored){p.scored=true;score++;}});
+    // collide
+    if(bird.y<0||bird.y>H-20) dead=true;
+    pipes.forEach(p=>{
+      if(bird.x+14>p.x&&bird.x<p.x+50){
+        if(bird.y<p.top||bird.y+20>p.top+p.gap) dead=true;
+      }
+    });
+    if(dead) cancelAnimationFrame(frameId);
+    draw();
+  }
+
+  function draw(){
+    // sky
+    let grad=ctx.createLinearGradient(0,0,0,H);
+    grad.addColorStop(0,'#001a2a'); grad.addColorStop(1,'#00050f');
+    ctx.fillStyle=grad; ctx.fillRect(0,0,W,H);
+    // pipes
+    pipes.forEach(p=>{
+      ctx.fillStyle='#00f5ff'; ctx.shadowBlur=8; ctx.shadowColor='#00f5ff';
+      ctx.fillRect(p.x,0,50,p.top);
+      ctx.fillRect(p.x,p.top+p.gap,50,H-p.top-p.gap);
+      ctx.shadowBlur=0;
+    });
+    // bird
+    ctx.fillStyle='#aaff00'; ctx.shadowBlur=12; ctx.shadowColor='#aaff00';
+    ctx.beginPath(); ctx.ellipse(bird.x+10,bird.y+10,14,10,bird.vy*0.04,0,Math.PI*2); ctx.fill();
+    ctx.shadowBlur=0;
+    // eye
+    ctx.fillStyle='#000'; ctx.beginPath(); ctx.arc(bird.x+16,bird.y+7,3,0,Math.PI*2); ctx.fill();
+    // score
+    ctx.fillStyle='#00f5ff'; ctx.font='bold 20px Orbitron,monospace'; ctx.textAlign='center';
+    ctx.fillText(score,W/2,35);
+    if(!started){
+      ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.fillRect(0,0,W,H);
+      ctx.fillStyle='#aaff00'; ctx.font='bold 18px Orbitron,monospace'; ctx.textAlign='center';
+      ctx.fillText('CLICK / SPACE TO START',W/2,H/2);
+    }
+    if(dead){
+      ctx.fillStyle='rgba(0,0,0,0.75)'; ctx.fillRect(0,0,W,H);
+      ctx.fillStyle='#ff006e'; ctx.font='bold 26px Orbitron,monospace'; ctx.textAlign='center';
+      ctx.fillText('GAME OVER',W/2,H/2-20);
+      ctx.fillStyle='#00f5ff'; ctx.font='14px Space Mono,monospace';
+      ctx.fillText('SCORE: '+score,W/2,H/2+15);
+      ctx.fillStyle='#555580'; ctx.font='11px Space Mono,monospace';
+      ctx.fillText('CLICK TO RESTART',W/2,H/2+45);
+    }
+  }
+
+  canvas.addEventListener('click',flap);
+  document.addEventListener('keydown',function flKey(e){if(e.key===' '){e.preventDefault();flap();}
+    canvas._cleanup=()=>{document.removeEventListener('keydown',flKey);cancelAnimationFrame(frameId);};
+  });
+
+  let ctrl=document.createElement('div'); ctrl.className='game-controls';
+  ctrl.textContent='CLICK OR SPACE TO FLAP';
+  init();
+  return [canvas,ctrl];
+}
+
+// ======================= MEMORY =======================
+function createMemory() {
+  const EMOJIS=['🚀','🌙','⭐','💎','🔮','🎯','🎲','🎸'];
+  let cards=[...EMOJIS,...EMOJIS].sort(()=>Math.random()-0.5).map((e,i)=>({e,i,flipped:false,matched:false}));
+  let flipped=[],moves=0,matched=0;
+
+  let scoreEl=document.createElement('div'); scoreEl.className='score-bar';
+  scoreEl.innerHTML='MOVES: <span>0</span> &nbsp; PAIRS: <span>0/8</span>';
+
+  let grid=document.createElement('div'); grid.className='memory-grid';
+
+  function updateScore(){scoreEl.innerHTML='MOVES: <span>'+moves+'</span> &nbsp; PAIRS: <span>'+matched+'/8</span>';}
+
+  function render(){
+    grid.innerHTML='';
+    cards.forEach((card,i)=>{
+      let el=document.createElement('div'); el.className='mem-card';
+      if(card.flipped||card.matched){el.classList.add(card.matched?'matched':'flipped');}
+      let span=document.createElement('span'); span.textContent=card.e; el.appendChild(span);
+      el.onclick=()=>{
+        if(card.flipped||card.matched||flipped.length>=2)return;
+        card.flipped=true; flipped.push(i); render();
+        if(flipped.length===2){
+          moves++;
+          if(cards[flipped[0]].e===cards[flipped[1]].e){
+            cards[flipped[0]].matched=cards[flipped[1]].matched=true;
+            matched++; flipped=[];
+          } else {
+            setTimeout(()=>{cards[flipped[0]].flipped=cards[flipped[1]].flipped=false;flipped=[];render();},800);
+          }
+          updateScore(); render();
+        }
+      };
+      grid.appendChild(el);
+    });
+  }
+
+  let resetBtn=document.createElement('button'); resetBtn.className='btn'; resetBtn.textContent='↺ NEW GAME';
+  resetBtn.onclick=()=>{
+    cards=[...EMOJIS,...EMOJIS].sort(()=>Math.random()-0.5).map((e,i)=>({e,i,flipped:false,matched:false}));
+    flipped=[];moves=0;matched=0;updateScore();render();
+  };
+
+  render();
+  return [scoreEl,grid,resetBtn];
+}
+
+// ======================= PONG =======================
+function createPong() {
+  const W=500,H=300;
+  let canvas=document.createElement('canvas'); canvas.width=W; canvas.height=H;
+  let ctx=canvas.getContext('2d');
+  let ball,p1,ai,score,frameId,started;
+
+  function init(){
+    ball={x:W/2,y:H/2,vx:4*(Math.random()>0.5?1:-1),vy:3*(Math.random()>0.5?1:-1)};
+    p1={y:H/2-40,score:0}; ai={y:H/2-40,score:0};
+    score=[0,0]; started=false;
+    if(frameId)cancelAnimationFrame(frameId); loop();
+  }
+
+  let keys={};
+  document.addEventListener('keydown',function pKey(e){keys[e.key]=true;canvas._cleanup=()=>{document.removeEventListener('keydown',pKey);cancelAnimationFrame(frameId);};});
+  document.addEventListener('keyup',function pKey(e){keys[e.key]=false;});
+
+  function loop(){
+    frameId=requestAnimationFrame(loop);
+    if(!started){draw();return;}
+    // player
+    if((keys['ArrowUp']||keys['w'])&&p1.y>5)p1.y-=6;
+    if((keys['ArrowDown']||keys['s'])&&p1.y<H-85)p1.y+=6;
+    // ai
+    let mid=ai.y+40;
+    if(mid<ball.y-5)ai.y=Math.min(ai.y+3.5,H-80);
+    else if(mid>ball.y+5)ai.y=Math.max(ai.y-3.5,0);
+    // ball
+    ball.x+=ball.vx; ball.y+=ball.vy;
+    if(ball.y<5||ball.y>H-5){ball.vy*=-1;}
+    // paddle collide
+    if(ball.x<25&&ball.y>p1.y&&ball.y<p1.y+80){ball.vx=Math.abs(ball.vx)+0.2;ball.vy+=(ball.y-p1.y-40)*0.1;}
+    if(ball.x>W-25&&ball.y>ai.y&&ball.y<ai.y+80){ball.vx=-(Math.abs(ball.vx)+0.2);ball.vy+=(ball.y-ai.y-40)*0.1;}
+    // score
+    if(ball.x<0){score[1]++;reset();}
+    if(ball.x>W){score[0]++;reset();}
+    draw();
+  }
+
+  function reset(){ball={x:W/2,y:H/2,vx:4*(Math.random()>0.5?1:-1),vy:3*(Math.random()>0.5?1:-1)};}
+
+  function draw(){
+    ctx.fillStyle='#000';ctx.fillRect(0,0,W,H);
+    // center line
+    ctx.setLineDash([8,8]);ctx.strokeStyle='#1a1a30';ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(W/2,0);ctx.lineTo(W/2,H);ctx.stroke();ctx.setLineDash([]);
+    // paddles
+    ctx.fillStyle='#00f5ff';ctx.shadowBlur=12;ctx.shadowColor='#00f5ff';
+    ctx.fillRect(10,p1.y,14,80);
+    ctx.fillStyle='#ff006e';ctx.shadowColor='#ff006e';
+    ctx.fillRect(W-24,ai.y,14,80);
+    // ball
+    ctx.fillStyle='#fff';ctx.shadowColor='#fff';ctx.shadowBlur=16;
+    ctx.beginPath();ctx.arc(ball.x,ball.y,7,0,Math.PI*2);ctx.fill();
+    ctx.shadowBlur=0;
+    // score
+    ctx.fillStyle='#00f5ff';ctx.font='bold 32px Orbitron,monospace';ctx.textAlign='center';
+    ctx.fillText(score[0],W/2-60,40);
+    ctx.fillStyle='#ff006e';
+    ctx.fillText(score[1],W/2+60,40);
+    if(!started){
+      ctx.fillStyle='rgba(0,0,0,0.6)';ctx.fillRect(0,0,W,H);
+      ctx.fillStyle='#00f5ff';ctx.font='14px Orbitron,monospace';ctx.textAlign='center';
+      ctx.fillText('PRESS SPACE TO START',W/2,H/2);
+    }
+  }
+
+  document.addEventListener('keydown',function pongSpace(e){
+    if(e.key===' ')started=true;
+    canvas._cleanup=()=>document.removeEventListener('keydown',pongSpace);
+  });
+
+  let ctrl=document.createElement('div');ctrl.className='game-controls';
+  ctrl.textContent='↑ ↓ / W S TO MOVE  ·  SPACE TO START';
+  init();
+  return [canvas,ctrl];
+}
+
+// ======================= TYPING =======================
+function createTyping() {
+  const WORDS=['quantum','stellar','cipher','vertex','nexus','zenith','cosmic','plasma','vector','binary',
+    'nebula','photon','matrix','surge','forge','blaze','swift','ghost','prism','flux'];
+  let word,timeLeft,score,timer,started,typingInput;
+
+  let scoreEl=document.createElement('div');scoreEl.className='score-bar';
+  let wrap=document.createElement('div');wrap.className='typing-display';
+  let wordEl=document.createElement('div');wordEl.className='typing-word';
+  let bar=document.createElement('div');bar.className='typing-bar';
+  let barFill=document.createElement('div');barFill.className='typing-bar-fill';
+  bar.appendChild(barFill);
+  typingInput=document.createElement('input');typingInput.className='typing-input';
+  typingInput.placeholder='TYPE HERE...';typingInput.autocomplete='off';typingInput.spellcheck=false;
+
+  wrap.appendChild(wordEl);wrap.appendChild(typingInput);wrap.appendChild(bar);
+
+  function newWord(){
+    word=WORDS[Math.floor(Math.random()*WORDS.length)].toUpperCase();
+    wordEl.textContent=word;
+    typingInput.value='';
+    timeLeft=Math.max(1500, 4000-score*100);
+    clearInterval(timer);
+    let elapsed=0;
+    timer=setInterval(()=>{
+      elapsed+=50; barFill.style.width=(100-(elapsed/timeLeft*100))+'%';
+      if(elapsed>=timeLeft){clearInterval(timer);endGame();}
+    },50);
+  }
+
+  function endGame(){
+    started=false;
+    wordEl.textContent='GAME OVER';
+    wordEl.style.color='#ff006e';
+    typingInput.disabled=true;
+    clearInterval(timer);barFill.style.width='0%';
+    startBtn.textContent='▶ PLAY AGAIN';
+    scoreEl.innerHTML='FINAL SCORE: <span>'+score+'</span>';
+  }
+
+  function startGame(){
+    score=0; started=true;
+    typingInput.disabled=false; typingInput.focus();
+    wordEl.style.color='';
+    scoreEl.innerHTML='SCORE: <span>0</span>';
+    newWord();
+  }
+
+  typingInput.addEventListener('input',()=>{
+    if(!started)return;
+    if(typingInput.value.toUpperCase()===word){score++;scoreEl.innerHTML='SCORE: <span>'+score+'</span>';newWord();}
+  });
+
+  scoreEl.innerHTML='SCORE: <span>0</span>';
+  let startBtn=document.createElement('button');startBtn.className='btn';startBtn.textContent='▶ START GAME';
+  startBtn.onclick=startGame;
+  let ctrl=document.createElement('div');ctrl.className='game-controls';
+  ctrl.textContent='TYPE THE DISPLAYED WORD BEFORE TIME RUNS OUT';
+  return [scoreEl,wrap,startBtn,ctrl];
+}
+
+// ======================= MODAL LOGIC =======================
+function openGame(type) {
+  // cleanup previous
+  document.querySelectorAll('canvas').forEach(c=>{ if(c._cleanup)c._cleanup(); });
+
+  const modal=document.getElementById('modal');
+  const body=document.getElementById('modal-body');
+  const title=document.getElementById('modal-title');
+  body.innerHTML='';
+
+  const names={snake:'SNAKE',tetris:'TETRIS',flappy:'FLAPPY BIRD',memory:'MEMORY MATCH',pong:'PONG',typing:'TYPE RUSH'};
+  title.textContent=names[type];
+
+  let elements=[];
+  if(type==='snake') elements=createSnake();
+  else if(type==='tetris') elements=createTetris();
+  else if(type==='flappy') elements=createFlappy();
+  else if(type==='memory') elements=createMemory();
+  else if(type==='pong') elements=createPong();
+  else if(type==='typing') elements=createTyping();
+
+  elements.forEach(el=>body.appendChild(el));
+  modal.classList.add('open');
+
+  // focus canvas for keyboard
+  const canvas=body.querySelector('canvas');
+  if(canvas){canvas.setAttribute('tabindex','0');setTimeout(()=>canvas.focus(),100);}
+}
+
+function closeGame() {
+  document.querySelectorAll('canvas').forEach(c=>{if(c._cleanup)c._cleanup();});
+  document.getElementById('modal').classList.remove('open');
+}
+
+document.getElementById('modal').addEventListener('click',function(e){
+  if(e.target===this)closeGame();
+});
+</script>
+</body>
+</html>
